@@ -7,9 +7,11 @@ import Html.Styled.Attributes exposing (..)
 import Html.Styled.Events exposing (onClick)
 import Random
 import Time exposing (Time, second, millisecond)
-import Task
 
 -- Model
+
+delay : Float
+delay = 10 -- seconds
 
 fileList : List String
 fileList = ["./img/01.jpg", "./img/02.jpg", "./img/03.jpg"]
@@ -106,7 +108,7 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     case model.state of
         Playing ->
-            Time.every ( second ) Tick
+            Time.every ( second * delay ) Tick
         Resetting ->
             Time.every ( millisecond ) (\_ -> Start)
 

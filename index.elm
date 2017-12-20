@@ -10,73 +10,108 @@ import Time exposing (Time, second, millisecond)
 
 -- Model
 
-delay : Float
-delay = 10 -- seconds
-
-fileList : List String
-fileList = ["./img/01.jpg", "./img/02.jpg", "./img/03.jpg"]
-
-fileCounts : Int
-fileCounts = List.length fileList
-           
-choiceFile : Cmd Msg
-choiceFile = Random.generate Select (Random.int 0 (fileCounts - 1))
+type alias FileList = List String
 
 type State = Resetting | Playing
 type alias Model = { position : Int
                    , state : State
+                   , fileList : FileList
+                   , delay : Float
                    }
+type ShowStatus = Vanish | Show | Other
 
+choiceNumber : Int -> Cmd Msg
+choiceNumber n = Random.generate Select (Random.int 0 (n - 1))
 
 init : ( Model, Cmd Msg )
 init =
-    ( {position = 1, state = Playing}, choiceFile )
+    let
+        initial =
+            { position = 1
+            , state = Playing
+            , fileList = ["./img/01.jpg", "./img/02.jpg", "./img/03.jpg"]
+            , delay = 4
+            }
+    in
+        ( initial, choiceNumber (List.length initial.fileList) )
 
 
 -- Message
-
 
 type Msg
     = Select Int
     | Tick Time
     | Start
 
-
-
 -- VIEW
-
 
 view : Model -> Html Msg
 view model =
     div []
-        [ text (toString model.position)
-        , div [ css [ position relative
+        [ div [ css [ position relative
                     , Css.width (px 300)
-                    , Css.height (px 430)
+                    , Css.height (px 420)
                     ]
               ] (imageList model)
+        , progress model
         , div [] (radioList model)
         ]
+        
+progress : Model -> Html Msg
+progress model =  
+    div [ style [("transition", (if model.state == Resetting then "0" else toString model.delay)++"s linear")]
+        , css [ backgroundImage
+                    (linearGradient2
+                         toRight
+                         (stop2 (rgba 0 0 0 0) <| pct 50)
+                         (stop2 (rgba 255 30 70 100) <| pct 50) [])
+              , Css.height (px 3)
+              , Css.width (px 300)
+              , backgroundSize2 (pct 200) auto
+              , if model.state == Resetting
+                then backgroundPosition2 zero zero
+                else backgroundPosition2 (pct -100) zero
+              ]
+        ][]
+
+
+showStatus : Int -> Int -> Int -> ShowStatus
+showStatus n show all =
+    if show == n
+    then Show
+    else if (show - n + all) % all == 1
+         then Vanish
+         else Other
 
 imageList : Model -> List (Html Msg)
 imageList model =
     let
-        image (n, name) = div
-                          [ id ("image" ++ toString n)
-                          , css [ backgroundImage (url name)
-                                , backgroundSize cover
-                                , Css.width (px 300)
-                                , Css.height (px 430)
-                                , position absolute
-                                , left zero
-                                , top zero
-                                , zIndex (if model.position == n
-                                          then int 10
-                                          else int 0)
-                                ]
-                          ] []
+        image (n, name) =
+            let
+                state = showStatus n model.position (List.length model.fileList)
+            in
+                div
+                [ id ("image" ++ toString n)
+                , style [("transition", "0.5s")]
+                , css [ backgroundImage (url name)
+                      , backgroundSize cover
+                      , Css.width (px 300)
+                      , Css.height (px 400)
+                      , position absolute
+                      , left zero
+                      , top zero
+                      , zIndex (if state == Show
+                                then int 10
+                                else if state == Vanish
+                                     then int 20
+                                     else int 0)
+                      , opacity (if state == Show
+                                 then int 100
+                                 else int 0)
+                      ]
+                ] []
     in
-        List.map image (List.indexedMap (,) fileList)
+        List.map image (List.indexedMap (,) model.fileList)
         
 radioList : Model -> List (Html Msg)
 radioList model =
@@ -86,7 +121,7 @@ radioList model =
                         , Html.Styled.Attributes.checked (n == model.position)
                         , onClick ( Select n ) ] []
     in
-       List.map radio ( List.range 0 ( fileCounts - 1 ) )
+       List.map radio ( List.range 0 ( (List.length model.fileList) - 1 ) )
         
 -- Update
 
@@ -95,8 +130,8 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         Tick _ ->
-            { model | position = ( model.position + 1 ) % fileCounts
-            , state = Playing } ! []
+            { model | position = ( model.position + 1 ) % (List.length model.fileList)
+            , state = Resetting } ! []
         Select n ->
             { model | position = n , state = Resetting } ! []
         Start ->
@@ -108,9 +143,9 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     case model.state of
         Playing ->
-            Time.every ( second * delay ) Tick
+            Time.every ( second * model.delay ) Tick
         Resetting ->
-            Time.every ( millisecond ) (\_ -> Start)
+            Time.every ( millisecond * 100 ) (\_ -> Start)
 
 -- MAIN
 

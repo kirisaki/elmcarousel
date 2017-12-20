@@ -12,7 +12,7 @@ import Time exposing (Time, second, millisecond)
 
 type alias FileList = List String
 
-type State = Resetting | Playing
+type State = Initializing | Resetting | Playing
 type alias Model = { position : Int
                    , state : State
                    , fileList : FileList
@@ -28,7 +28,7 @@ init =
     let
         initial =
             { position = 1
-            , state = Playing
+            , state = Initializing
             , fileList = ["./img/01.jpg", "./img/02.jpg", "./img/03.jpg"]
             , delay = 4
             }
@@ -105,9 +105,10 @@ imageList model =
                                 else if state == Vanish
                                      then int 20
                                      else int 0)
-                      , opacity (if state == Show
-                                 then int 100
-                                 else int 0)
+                      , opacity (if model.state == Initializing
+                                 then int 0 else if state == Show
+                                             then int 100
+                                             else int 0)
                       ]
                 ] []
     in
@@ -146,7 +147,8 @@ subscriptions model =
             Time.every ( second * model.delay ) Tick
         Resetting ->
             Time.every ( millisecond * 100 ) (\_ -> Start)
-
+        Initializing ->
+            Sub.none
 -- MAIN
 
 main : Program Never Model Msg
